@@ -1,0 +1,242 @@
+import numpy as np
+import sys
+import math
+import copy
+import matplotlib.pyplot as plt
+
+class MDP_bus2(object):
+    """
+    class for solving shuttle dispatching problem, problem 2
+    """
+    def __init__(self, q_cap, s_cap, t_prob, s_cost, q_cost, discount):
+        """
+        Initialize the MDP parameters
+        :param q_cap: capacity of the queue, int (since all type have same cap)
+        :param s_cap: capacity of shuttle, int
+        :param t_prob: transition prob, list of tuple, [(arrival, prob),..]
+        :param s_cost: shuttle cost
+        :param q_cost: list, per customer per time period waiting cost, list with length of customer type
+        """
+        # Problem parameter
+        self.prob = t_prob
+        self.q_cap = q_cap
+        self.s_cap = s_cap
+        self.s_cost = s_cost
+        self.q_cost = q_cost
+        self.discount = discount
+        # type of customers
+        self.n_type = len(self.q_cost)
+
+        # This is the initial value for each state
+        self.state_shape = []
+        self.n_state = 1
+        for i in range(self.n_type):
+            self.state_shape.append(self.q_cap + 1)
+            self.n_state *= (self.q_cap + 1)
+        self.value = np.zeros(self.state_shape)
+        self.value_old = np.zeros(self.state_shape)
+        print("shape of state value={}".format(self.value.shape))
+        print("number of state= {}".format(self.n_state))
+        # This is the initial policy for each state
+        self.policy = np.zeros(self.state_shape)
+
+
+
+    def transit_step(self, s, a):
+        """
+        Compute one step transition result, starting from state s, taking action a
+        s: list, current state
+        a: integer, action taken
+        Assume the bus is dispatched at the beginning of each period, arrival is at the end of each period
+        :return:
+        prob:  probability of next state
+        s_new: possible next state, numpy array with the same shape as self.value
+        r: reward for every possible next state, the same under this given (s, a)
+        """
+        # probability for each type in each state
+        prob = np.zeros(( self.n_type, len(self.prob)))
+        # new state can be #type * #waiting for each type
+        s_new = np.zeros((self.n_type, len(self.prob)))
+        # reward is the same for each cell: (s, a) determines a single reward
+
+        # compute holding cost, the high cost customer should be inserted into bus first
+        tot_cap = a * self.s_cap
+        holding_cost = 0
+        q_hold = [0] * self.n_type
+        for i in range(self.n_type-1, -1, -1):
+            if tot_cap <= s[i]:
+                holding_cost += (s[i] - tot_cap) * self.q_cost[i]
+                q_hold[i] = s[i] - tot_cap
+                tot_cap = 0
+            else:
+                tot_cap -= s[i]
+                q_hold[i] = 0
+        # immediate cost for taking action a
+        r = a * self.s_cost + holding_cost
+
+        for i in range(len(self.q_cost)):
+            for index, j in enumerate(self.prob):
+                s_new[i, index] = min(q_hold[i] + j[0], self.q_cap)
+                # This only holds for the uniform distribution!
+                prob[i, index] = j[1]
+        #print("Transition from state {} by taking action {} -> new_state=\n{}, cost={} with probability {}".format(s, a, s_new, r, prob))
+        return prob, s_new, r
+
+
+    def value_iteration(self, T, threshold = 0.0001):
+        """
+        Value iteration algorithm: update the value for each state
+        Assume the bus is dispatched at the beginning of each period, arrival is at the end of each period
+        Loop will stop if the value change is less than threshold, or number of period is reached
+        :param T: number of period
+        :return: None
+        """
+
+        for t in range(T):
+
+            # This is the initial state: TODO: how to write general code?
+            count_equal = 0
+            converge = False
+
+            for s1 in range(self.q_cap + 1):
+                for s2 in range(self.q_cap + 1):
+                    for s3 in range(self.q_cap + 1):
+                        for s4 in range(self.q_cap + 1):
+                            for s5 in range(self.q_cap + 1):
+                                state = [s1, s2, s3, s4, s5]
+
+                                # This is all the action it can take
+                                bus_max = int(math.ceil((s1+s2+s3+s4+s5)*1.0/self.s_cap))
+                                min_cost = sys.maxint
+                                for action in range(bus_max+1):
+                                    prob, s_new, reward = self.transit_step(state, action)
+                                    #print("Period {} transition from state {} by taking action {} -> new_state=\n{}, cost={} with equal probability".format(t, state, action, s_new, reward))
+
+                                    cost = 0
+                                    # compute the expected reward, by taking action a:
+                                    # the new state can be a combination of picking one state for each type of customers
+                                    for i1, s1_new in enumerate(s_new[0]):
+                                        for i2, s2_new in enumerate(s_new[1]):
+                                            for i3, s3_new in enumerate(s_new[2]):
+                                                for i4, s4_new in enumerate(s_new[3]):
+                                                    for i5, s5_new in enumerate(s_new[4]):
+                                                        cost += prob[0, i1] * prob[1, i2] * prob[2,i3] * prob[3,i4] * prob[4,i5] \
+                                                                * (reward + self.discount * self.value_old[s1_new, s2_new, s3_new, s4_new, s5_new])
+                                    if cost < min_cost:
+                                        min_cost = cost
+                                    #print("expected cost at the current state by this transition = {}".format(cost))
+                                # update the value of state s using the minimum cost possible
+                                if abs(self.value[s1, s2, s3, s4, s5] - min_cost) > threshold:
+                                    self.value[s1, s2, s3, s4, s5] = min_cost
+                                else:
+                                    count_equal += 1
+                                print("For T={0}: Value{1}={2}".format(t+1, state, self.value[s1, s2, s3, s4, s5]))
+
+                                if count_equal == self.n_state:
+                                    converge = True
+            self.value_old[:] = self.value
+            # check if value change is minimal to stop loop
+            if converge:
+                print("Value iteration converges!")
+                break
+
+    def policy_iteration(self, threshold = 0.0001):
+        """
+        Policy iteration algorithm
+        :param threshold:
+        :return:
+        """
+        converge = False
+        while converge is not True:
+            # Step 1: Policy evaluation - update values under a fixed policy
+            step1_cnt = 0
+            while True:
+                count_equal = 0
+                # This is the initial state
+                for s1 in range(self.q_cap + 1):
+                    for s2 in range(self.q_cap + 1):
+                        for s3 in range(self.q_cap + 1):
+                            for s4 in range(self.q_cap + 1):
+                                for s5 in range(self.q_cap + 1):
+                                    state = [s1, s2, s3, s4, s5]
+
+                                    action = self.policy[s1, s2, s3, s4, s5]
+                                    prob, s_new, reward = self.transit_step(state, action)
+                                    # print("Period {} transition from state {} by taking action {} -> new_state=\n{}, cost={} with equal probability".format(t, state, action, s_new, reward))
+                                    cost = 0
+                                    # compute the expected reward, by taking action a:
+                                    # the new state can be a combination of picking one state for each type of customers
+                                    for i1, s1_new in enumerate(s_new[0]):
+                                        for i2, s2_new in enumerate(s_new[1]):
+                                            for i3, s3_new in enumerate(s_new[2]):
+                                                for i4, s4_new in enumerate(s_new[3]):
+                                                    for i5, s5_new in enumerate(s_new[4]):
+                                                        cost += prob[0, i1] * prob[1, i2] * prob[2, i3] * prob[3, i4] * prob[4, i5] \
+                                                                * (reward + self.discount * self.value_old[s1_new, s2_new, s3_new, s4_new, s5_new])
+
+                                    if abs(self.value[s1,s2,s3,s4,s5] - cost) >= threshold:
+                                        self.value[s1, s2, s3, s4, s5] = cost
+                                    else:
+                                        count_equal += 1
+                self.value_old[:] = self.value
+                if count_equal >= self.n_state:
+                    print("Step 1 converges with #iteration={}".format(step1_cnt))
+                    break
+                step1_cnt += 1
+
+            # Step 2: Update policy based on the current state values
+            state_cnt = 0
+            for s1 in range(self.q_cap + 1):
+                for s2 in range(self.q_cap + 1):
+                    for s3 in range(self.q_cap + 1):
+                        for s4 in range(self.q_cap + 1):
+                            for s5 in range(self.q_cap + 1):
+                                state = [s1, s2, s3, s4, s5]
+                                old_policy = self.policy[s1,s2,s3,s4,s5]
+                                bus_max = int(math.ceil((s1 + s2 + s3 + s4 + s5) * 1.0 / self.s_cap))
+                                min_cost = sys.maxint
+                                for action in range(bus_max + 1):
+                                    prob, s_new, reward = self.transit_step(state, action)
+                                    cost = 0
+                                    # compute the expected reward, by taking action a:
+                                    # the new state can be a combination of picking one state for each type of customers
+                                    for i1, s1_new in enumerate(s_new[0]):
+                                        for i2, s2_new in enumerate(s_new[1]):
+                                            for i3, s3_new in enumerate(s_new[2]):
+                                                for i4, s4_new in enumerate(s_new[3]):
+                                                    for i5, s5_new in enumerate(s_new[4]):
+                                                        cost += prob[0, i1] * prob[1, i2] * prob[2, i3] * prob[3, i4] * prob[4, i5] \
+                                                                * (reward + self.discount * self.value_old[s1_new, s2_new, s3_new, s4_new, s5_new])
+                                    if cost < min_cost:
+                                        min_cost = cost
+                                        self.policy[s1,s2,s3,s4,s5] = action
+                                if old_policy == self.policy[s1,s2,s3,s4,s5]:
+                                    state_cnt += 1
+
+            print("Step 2 finished")
+            if state_cnt == self.n_state:
+                converge = True
+                print("Policy iteration converges!")
+                for s1 in range(self.q_cap + 1):
+                    for s2 in range(self.q_cap + 1):
+                        for s3 in range(self.q_cap + 1):
+                            for s4 in range(self.q_cap + 1):
+                                for s5 in range(self.q_cap + 1):
+                                    print("policy[{},{},{},{},{}] = ".format(s1,s2,s3,s4,s5, self.policy[s1,s2,s3,s4,s5]))
+
+
+if __name__ == "__main__":
+    # input
+    q_cap = 5
+    s_cap = 10
+    t_prob = [(1, 0.2), (2, 0.2), (3, 0.2), (4, 0.2), (5, 0.2)]
+    s_cost = 10
+    # this should be sorted in increasing order
+    q_cost = [1, 1.5, 2, 2.5, 3]
+    discount = 0.95
+    # run MDP
+    shuttle = MDP_bus2(q_cap, s_cap, t_prob, s_cost, q_cost, discount)
+    shuttle.transit_step([1, 1, 5, 3, 0], 1)
+    #shuttle.value_iteration(2)
+    shuttle.policy_iteration(2)
+    #shuttle.plot_result()
