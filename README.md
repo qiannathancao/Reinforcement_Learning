@@ -1,4 +1,4 @@
-# Reinforcement_Learning
+# Reinforcement_Learning for Artificial Intelligence  
 
 Reinforcement Learning with TensorFlow, Allowing Machine to Learn Problems Autonomously  
 
