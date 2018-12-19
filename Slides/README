@@ -1,1 +1,23 @@
+Reinforcement	Learning for	Artificial	Intelligence  
+Course	Description:  
 
+Recent	breakthroughs	of	artificial	intelligence	in	games	such	as	Go	and	poker,	and	
+advancements	in	robotics,	autonomous	cars,	manufacturing	scheduling	are	driven	by	
+reinforcement	learning	where	an	agent	learns	in	real	time	based	on	an	ever-changing	
+environment	and	receiving	a	reward	after	an	action	is	taken.	Combined	with	deep	learning,	
+deep	reinforcement	learning	is	the	current	state-of-the-art.	  
+
+This	course	covers	the	modeling	concepts	and	the	underlying	recursive	functions	behind	
+reinforcement	learning.	A	substantial	part	of	the	material	is	devoted	to	modern	algorithms	for	
+solving	the	underlying	model	including	deep	Q-networks,	policy	gradient,	Monte-Carlo	tree	
+search,	and	actor-critic	algorithms.	Through	homework	assignments	and	projects,	students	
+implement	and	evaluate	these	algorithms	in	Python.  
+
+Course	Objectives:  
+At	the	end	of	the	course	students	should	be	able	to:  
+1. Given	a	business	problem	identify	if	reinforcement	learning	is	needed	to	solve	it	or	a	
+different	technique
+2. Recognize	states,	the	role	of	an	agent,	its	actions,	and	environment	for	a	given	
+reinforcement	learning problem
+3. Select	the	most	appropriate	reinforcement	learning	algorithm	for	a	problem	at	hand
+4. Implement	the	overall	solution	in	Python
