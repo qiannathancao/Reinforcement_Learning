@@ -10,7 +10,7 @@ reinforcement	learning problem
 3. Select	the	most	appropriate	reinforcement	learning	algorithm	for	a	problem	at	hand  
 4. Implement	the	overall	solution	in	Python
 
-HW_Solution provided:
+HW_Solution provided:  
 HW_1 Problem 1 & 2 (MDP): added on 10/28/2018  
 HW_2 Problem 1 (CartPole): added on 11/12/2018  
 HW_2 Problem 2 (Pong): added on 11/12/2018  
